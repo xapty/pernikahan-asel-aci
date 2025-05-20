@@ -58,9 +58,9 @@ export const auth = (() => {
             Object.entries(res.data).forEach(([k, v]) => user.set(k, v));
 
             return res;
-        }).catch((err) => {
+        }, (res) => {
             clearSession();
-            return err;
+            return res;
         });
     };
 

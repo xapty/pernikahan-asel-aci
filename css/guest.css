@@ -1,14 +1,13 @@
 @import url("common.css");
 @import url("animation.css");
 
-html {
+* {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
 }
 
-.with-scrollbar {
-    scrollbar-width: auto !important;
-    -ms-overflow-style: auto !important;
+*::-webkit-scrollbar {
+    display: none !important;
 }
 
 .font-esthetic {
@@ -82,7 +81,7 @@ html[data-bs-theme="dark"] .bg-white-black {
     width: 25%;
 }
 
-@media screen and (max-width: 992px) {
+@media screen and (max-width: 768px) {
     .width-loading {
         width: 50%;
     }

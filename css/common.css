@@ -10,11 +10,27 @@ body {
     overflow-x: hidden !important;
 }
 
+a,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+ul,
+li,
 div,
 nav,
-section {
-    will-change: background-color;
-    transition: background-color 350ms ease;
+body,
+span,
+input,
+label,
+button,
+section,
+textarea {
+    will-change: background-color, color;
+    transition: background-color 350ms ease, color 50ms ease;
 }
 
 svg {
@@ -105,12 +121,12 @@ html[data-bs-theme="light"] .bg-overlay-auto {
     backdrop-filter: blur(0.25rem);
 }
 
-.hover-area {
+.gif-checklist {
     display: none;
     cursor: pointer;
 }
 
-.hover-wrapper:hover .hover-area {
+.gif-figure:hover .gif-checklist {
     display: flex;
 }
 

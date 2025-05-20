@@ -7,7 +7,7 @@ import { lang } from '../../common/language.js';
 import { storage } from '../../common/storage.js';
 import { session } from '../../common/session.js';
 import { offline } from '../../common/offline.js';
-import { comment } from '../components/comment.js';
+import { comment } from '../component/comment.js';
 import { request, HTTP_GET, HTTP_PATCH, HTTP_PUT } from '../../connection/request.js';
 
 export const admin = (() => {
@@ -15,7 +15,7 @@ export const admin = (() => {
     /**
      * @returns {Promise<void>}
      */
-    const getUserStats = () => auth.getDetailUser().then((res) => {
+    const getAllRequest = () => auth.getDetailUser().then((res) => {
 
         util.safeInnerHTML(document.getElementById('dashboard-name'), `${util.escapeHtml(res.data.name)}<i class="fa-solid fa-hands text-warning ms-2"></i>`);
         document.getElementById('dashboard-email').textContent = res.data.email;
@@ -23,7 +23,6 @@ export const admin = (() => {
         document.getElementById('button-copy-accesskey').setAttribute('data-copy', res.data.access_key);
 
         document.getElementById('form-name').value = util.escapeHtml(res.data.name);
-        document.getElementById('form-timezone').value = res.data.tz;
         document.getElementById('filterBadWord').checked = Boolean(res.data.is_filter);
         document.getElementById('confettiAnimation').checked = Boolean(res.data.is_confetti_animation);
         document.getElementById('replyComment').checked = Boolean(res.data.can_reply);
@@ -32,14 +31,19 @@ export const admin = (() => {
         document.getElementById('dashboard-tenorkey').value = res.data.tenor_key;
 
         storage('config').set('tenor_key', res.data.tenor_key);
-
-        request(HTTP_GET, '/api/stats').token(session.getToken()).send().then((resp) => {
-            document.getElementById('count-comment').textContent = String(resp.data.comments).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            document.getElementById('count-like').textContent = String(resp.data.likes).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            document.getElementById('count-present').textContent = String(resp.data.present).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            document.getElementById('count-absent').textContent = String(resp.data.absent).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        });
     });
+
+    /**
+     * @returns {void}
+     */
+    const getStatsComment = () => {
+        request(HTTP_GET, '/api/stats').token(session.getToken()).send().then((res) => {
+            document.getElementById('count-comment').textContent = String(res.data.comments).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('count-like').textContent = String(res.data.likes).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('count-present').textContent = String(res.data.present).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            document.getElementById('count-absent').textContent = String(res.data.absent).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        });
+    };
 
     /**
      * @param {HTMLElement} checkbox
@@ -96,7 +100,7 @@ export const admin = (() => {
                     return;
                 }
 
-                getUserStats();
+                getAllRequest();
             })
             .finally(() => btn.restore());
     };
@@ -184,8 +188,7 @@ export const admin = (() => {
         const btn = util.disableButton(button);
         request(HTTP_GET, '/api/download')
             .token(session.getToken())
-            .withDownload('download', 'csv')
-            .send()
+            .download()
             .finally(() => btn.restore());
     };
 
@@ -212,83 +215,6 @@ export const admin = (() => {
     };
 
     /**
-     * @param {HTMLFormElement} form 
-     * @param {string|null} [query=null] 
-     * @returns {void}
-     */
-    const openLists = (form, query = null) => {
-        let timezones = Intl.supportedValuesOf('timeZone');
-        const dropdown = document.getElementById('dropdown-tz-list');
-
-        if (form.value && form.value.trim().length > 0) {
-            timezones = timezones.filter((tz) => tz.toLowerCase().includes(form.value.trim().toLowerCase()));
-        }
-
-        if (query === null) {
-            document.addEventListener('click', (e) => {
-                if (!form.contains(e.currentTarget) && !dropdown.contains(e.currentTarget)) {
-                    if (form.value.trim().length <= 0) {
-                        form.setCustomValidity('Timezone cannot be empty.');
-                        form.reportValidity();
-                        return;
-                    }
-
-                    form.setCustomValidity('');
-                    dropdown.classList.add('d-none');
-                }
-            }, { once: true, capture: true });
-        }
-
-        dropdown.replaceChildren();
-        dropdown.classList.remove('d-none');
-
-        timezones.slice(0, 20).forEach((tz) => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'list-group-item list-group-item-action py-1 small';
-            item.textContent = `${tz} (${util.getGMTOffset(tz)})`;
-            item.onclick = () => {
-                form.value = tz;
-                dropdown.classList.add('d-none');
-                document.getElementById('button-timezone').disabled = false;
-            };
-            dropdown.appendChild(item);
-        });
-    };
-
-    /**
-     * @param {HTMLButtonElement} button
-     * @returns {void}
-     */
-    const changeTz = (button) => {
-        const tz = document.getElementById('form-timezone');
-
-        if (tz.value.length === 0) {
-            alert('Time zone cannot be empty');
-            return;
-        }
-
-        tz.disabled = true;
-        const btn = util.disableButton(button);
-
-        request(HTTP_PATCH, '/api/user')
-            .token(session.getToken())
-            .body({ tz: tz.value })
-            .send(dto.statusResponse)
-            .then((res) => {
-                if (!res.data.status) {
-                    return;
-                }
-
-                alert('Success change tz');
-            })
-            .finally(() => {
-                tz.disabled = false;
-                btn.restore(true);
-            });
-    };
-
-    /**
      * @returns {void}
      */
     const logout = () => {
@@ -309,10 +235,13 @@ export const admin = (() => {
         offline.init();
         theme.spyTop();
 
-        const booted = () => getUserStats().then(() => {
+        const booted = async () => {
+            await getAllRequest();
+            getStatsComment();
+
             comment.init();
             comment.show();
-        });
+        };
 
         document.addEventListener('hidden.bs.modal', booted);
 
@@ -369,8 +298,6 @@ export const admin = (() => {
                 changeCheckboxValue,
                 enableButtonName,
                 enableButtonPassword,
-                openLists,
-                changeTz,
             },
         };
     };

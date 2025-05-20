@@ -52,13 +52,12 @@ export const session = (() => {
     const isAdmin = () => String(getToken() ?? '.').split('.').length === 3;
 
     /**
-     * @param {string} token
      * @returns {Promise<object>}
      */
-    const guest = (token) => {
+    const guest = () => {
         return request(HTTP_GET, '/api/v2/config')
             .withCache(1000 * 60 * 60 * 1)
-            .token(token)
+            .token(getToken())
             .send()
             .then((res) => {
                 if (res.code !== HTTP_STATUS_OK) {
@@ -70,7 +69,6 @@ export const session = (() => {
                     config.set(k, v);
                 }
 
-                setToken(token);
                 return res;
             });
     };
