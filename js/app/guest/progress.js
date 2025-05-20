@@ -15,6 +15,11 @@ export const progress = (() => {
     let valid = true;
 
     /**
+     * @type {Promise<void>|null}
+     */
+    let cancelProgress = null;
+
+    /**
      * @returns {void}
      */
     const add = () => {
@@ -43,7 +48,7 @@ export const progress = (() => {
         bar.style.width = Math.min((loaded / total) * 100, 100).toString() + '%';
 
         if (loaded === total) {
-            document.dispatchEvent(new Event('progress.done'));
+            document.dispatchEvent(new Event('undangan.progress.done'));
         }
     };
 
@@ -56,9 +61,14 @@ export const progress = (() => {
             valid = false;
             bar.style.backgroundColor = 'red';
             info.innerText = `Error loading ${type} ${showInformation()}`;
-            document.dispatchEvent(new Event('progress.invalid'));
+            document.dispatchEvent(new Event('undangan.progress.invalid'));
         }
     };
+
+    /**
+     * @returns {Promise<void>|null}
+     */
+    const getAbort = () => cancelProgress;
 
     /**
      * @returns {void}
@@ -67,6 +77,7 @@ export const progress = (() => {
         info = document.getElementById('progress-info');
         bar = document.getElementById('progress-bar');
         info.classList.remove('d-none');
+        cancelProgress = new Promise((res) => document.addEventListener('undangan.progress.invalid', res));
     };
 
     return {
@@ -74,5 +85,6 @@ export const progress = (() => {
         add,
         invalid,
         complete,
+        getAbort,
     };
 })();
