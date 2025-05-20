@@ -40,25 +40,22 @@ export const request = (method, path) => {
     const ac = new AbortController();
     const req = {
         signal: ac.signal,
-        method: String(method).toUpperCase(),
         headers: new Headers(defaultJSON),
+        method: String(method).toUpperCase(),
     };
 
-    window.addEventListener('offline', () => ac.abort());
-    window.addEventListener('popstate', () => ac.abort());
+    window.addEventListener('offline', () => ac.abort(), { once: true });
+    window.addEventListener('popstate', () => ac.abort(), { once: true });
 
     let reqTtl = 0;
     let reqRetry = 0;
     let reqDelay = 0;
     let reqAttempts = 0;
-    let url = document.body.getAttribute('data-url');
-
-    if (url && url.slice(-1) === '/') {
-        url = url.slice(0, -1);
-    }
+    let downExt = null;
+    let downName = null;
 
     /**
-     * @param {string} input 
+     * @param {string|URL} input 
      * @returns {Promise<Response>}
      */
     const baseFetch = (input) => {
@@ -143,11 +140,11 @@ export const request = (method, path) => {
                 reqDelay *= 2;
                 reqAttempts++;
 
-                if (reqAttempts >= reqRetry) {
+                if (reqAttempts > reqRetry) {
                     throw new Error(`Max retries reached: ${error}`);
                 }
 
-                console.warn(`Retrying fetch (${reqAttempts}/${reqRetry}): ${input}`);
+                console.warn(`Retrying fetch (${reqAttempts}/${reqRetry}): ${input.toString()}`);
                 await new Promise((resolve) => window.setTimeout(resolve, reqDelay));
 
                 return attempt();
@@ -157,6 +154,40 @@ export const request = (method, path) => {
         return attempt();
     };
 
+    /**
+     * @param {Response} res 
+     * @returns {Response}
+     */
+    const baseDownload = (res) => {
+        if (res.status !== HTTP_STATUS_OK) {
+            return res;
+        }
+
+        const exist = document.querySelector('a[download]');
+        if (exist) {
+            document.body.removeChild(exist);
+        }
+
+        const filename = res.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1];
+
+        return res.clone().blob().then((b) => {
+            const link = document.createElement('a');
+            const href = window.URL.createObjectURL(b);
+
+            link.href = href;
+            link.download = filename ? filename : `${downName}.${downExt ? downExt : (b.type.split('/')?.[1] ?? 'bin')}`;
+
+            document.body.appendChild(link);
+
+            link.click();
+
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(href);
+
+            return res;
+        });
+    };
+
     return {
         /**
          * @template T
@@ -164,8 +195,20 @@ export const request = (method, path) => {
          * @returns {Promise<{code: number, data: T, error: string[]|null}>}
          */
         send(transform = null) {
-            return baseFetch(url + path)
-                .then((res) => res.json().then((json) => {
+            if (downName) {
+                Object.keys(defaultJSON).forEach((k) => req.headers.delete(k));
+            }
+
+            return baseFetch(new URL(path, document.body.getAttribute('data-url'))).then((res) => {
+                if (downName && res.ok) {
+                    return {
+                        code: res.status,
+                        data: baseDownload(res),
+                        error: null,
+                    };
+                }
+
+                return res.json().then((json) => {
                     if (res.status >= HTTP_STATUS_INTERNAL_SERVER_ERROR && (json.message ?? json[0])) {
                         throw new Error(json.message ?? json[0]);
                     }
@@ -179,16 +222,16 @@ export const request = (method, path) => {
                     }
 
                     return json;
-                }))
-                .catch((err) => {
-                    if (err.name === ERROR_ABORT) {
-                        console.warn('Fetch abort:', err);
-                        return err;
-                    }
-
-                    alert(err);
-                    throw new Error(err);
                 });
+            }).catch((err) => {
+                if (err.name === ERROR_ABORT) {
+                    console.warn('Fetch abort:', err);
+                    return err;
+                }
+
+                alert(err);
+                throw new Error(err);
+            });
         },
         /**
          * @param {number} [ttl=21600000]
@@ -227,56 +270,28 @@ export const request = (method, path) => {
             return this;
         },
         /**
+         * @param {string} name 
+         * @param {string|null} ext
+         * @returns {ReturnType<typeof request>}
+         */
+        withDownload(name, ext = null) {
+            downName = name;
+            downExt = ext;
+            return this;
+        },
+        /**
          * @param {object|null} header 
          * @returns {Promise<Response>}
          */
         default(header = null) {
             req.headers = new Headers(header ?? {});
-            return baseFetch(path);
-        },
-        /**
-         * @returns {Promise<boolean>}
-         */
-        download() {
-            Object.keys(defaultJSON).forEach((k) => req.headers.delete(k));
-            return baseFetch(url + path)
-                .then((res) => {
-                    if (res.status !== HTTP_STATUS_OK) {
-                        return false;
-                    }
+            return baseFetch(path).then((res) => {
+                if (downName) {
+                    return baseDownload(res);
+                }
 
-                    const existingLink = document.querySelector('a[download]');
-                    if (existingLink) {
-                        document.body.removeChild(existingLink);
-                    }
-
-                    const filename = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] ?? 'download.csv';
-
-                    return res.blob().then((blob) => {
-                        const link = document.createElement('a');
-                        const href = window.URL.createObjectURL(blob);
-
-                        link.href = href;
-                        link.download = filename;
-                        document.body.appendChild(link);
-
-                        link.click();
-
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(href);
-
-                        return true;
-                    });
-                })
-                .catch((err) => {
-                    if (err.name === ERROR_ABORT) {
-                        console.warn('Fetch abort:', err);
-                        return false;
-                    }
-
-                    alert(err);
-                    throw new Error(err);
-                });
+                return res;
+            });
         },
         /**
          * @param {string} token

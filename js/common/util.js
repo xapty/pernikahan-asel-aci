@@ -2,6 +2,32 @@ export const util = (() => {
 
     const loader = '<span class="spinner-border spinner-border-sm my-0 ms-0 me-1 p-0" style="height: 0.8rem; width: 0.8rem;"></span>';
 
+    const deviceTypes = [
+        { type: 'Mobile', regex: /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i },
+        { type: 'Tablet', regex: /iPad|Android(?!.*Mobile)|Tablet/i },
+        { type: 'Desktop', regex: /Windows NT|Macintosh|Linux/i },
+    ];
+
+    const browsers = [
+        { name: 'Chrome', regex: /Chrome|CriOS/i },
+        { name: 'Safari', regex: /Safari/i },
+        { name: 'Edge', regex: /Edg|Edge/i },
+        { name: 'Firefox', regex: /Firefox|FxiOS/i },
+        { name: 'Opera', regex: /Opera|OPR/i },
+        { name: 'Internet Explorer', regex: /MSIE|Trident/i },
+        { name: 'Samsung Browser', regex: /SamsungBrowser/i },
+    ];
+
+    const operatingSystems = [
+        { name: 'Windows', regex: /Windows NT ([\d.]+)/i },
+        { name: 'MacOS', regex: /Mac OS X ([\d_.]+)/i },
+        { name: 'Android', regex: /Android ([\d.]+)/i },
+        { name: 'iOS', regex: /OS ([\d_]+) like Mac OS X/i },
+        { name: 'Linux', regex: /Linux/i },
+        { name: 'Ubuntu', regex: /Ubuntu/i },
+        { name: 'Chrome OS', regex: /CrOS/i },
+    ];
+
     /**
      * @param {string} unsafe
      * @returns {string}
@@ -53,10 +79,10 @@ export const util = (() => {
 
     /**
      * @param {function} callback
-     * @param {number} delay
+     * @param {number} [delay=0]
      * @returns {void}
      */
-    const timeOut = (callback, delay) => {
+    const timeOut = (callback, delay = 0) => {
         let clear = null;
         const c = () => {
             callback();
@@ -69,10 +95,10 @@ export const util = (() => {
 
     /**
      * @param {function} callback
-     * @param {number} delay
+     * @param {number} [delay=100]
      * @returns {function}
      */
-    const debounce = (callback, delay) => {
+    const debounce = (callback, delay = 100) => {
         let timeout = null;
         return (...args) => {
             clearTimeout(timeout);
@@ -177,39 +203,38 @@ export const util = (() => {
      * @returns {string}
      */
     const parseUserAgent = (userAgent) => {
-        const deviceTypes = [
-            { type: 'Mobile', regex: /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i },
-            { type: 'Tablet', regex: /iPad|Android(?!.*Mobile)|Tablet/i },
-            { type: 'Desktop', regex: /Windows NT|Macintosh|Linux/i },
-        ];
+        if (!userAgent || typeof userAgent !== 'string') {
+            return 'Unknown';
+        }
 
-        const browsers = [
-            { name: 'Chrome', regex: /Chrome|CriOS/i },
-            { name: 'Safari', regex: /Safari/i },
-            { name: 'Edge', regex: /Edg|Edge/i },
-            { name: 'Firefox', regex: /Firefox|FxiOS/i },
-            { name: 'Opera', regex: /Opera|OPR/i },
-            { name: 'Internet Explorer', regex: /MSIE|Trident/i },
-        ];
-
-        const operatingSystems = [
-            { name: 'Windows', regex: /Windows NT ([\d.]+)/i },
-            { name: 'MacOS', regex: /Mac OS X ([\d_]+)/i },
-            { name: 'Android', regex: /Android ([\d.]+)/i },
-            { name: 'iOS', regex: /OS ([\d_]+) like Mac OS X/i },
-            { name: 'Linux', regex: /Linux/i },
-        ];
-
-        const deviceType = deviceTypes.find((i) => i.regex.test(userAgent))?.type || 'Unknown';
-        const browser = browsers.find((i) => i.regex.test(userAgent))?.name || 'Unknown';
+        const deviceType = deviceTypes.find((i) => i.regex.test(userAgent))?.type ?? 'Unknown';
+        const browser = browsers.find((i) => i.regex.test(userAgent))?.name ?? 'Unknown';
         const osMatch = operatingSystems.find((i) => i.regex.test(userAgent));
 
-        let osVersion = osMatch ? (userAgent.match(osMatch.regex)?.[1]?.replace(/_/g, '.') || '') : '';
+        const osName = osMatch ? osMatch.name : 'Unknown';
+        const osVersion = osMatch ? (userAgent.match(osMatch.regex)?.[1]?.replace(/_/g, '.') ?? null) : null;
 
-        const os = osMatch ? osMatch.name : 'Unknown';
-        osVersion = osVersion ? `${os} ${osVersion}` : os;
+        return `${browser} on ${deviceType} ${osVersion ? `${osName} ${osVersion}` : osName}`;
+    };
 
-        return `${browser} ${deviceType} ${osVersion}`;
+    /**
+     * @param {string} tz 
+     * @returns {string}
+     */
+    const getGMTOffset = (tz) => {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            hourCycle: 'h23',
+            hour: 'numeric',
+        });
+
+        let offset = (parseInt(formatter.format(now)) - now.getUTCHours() + 24) % 24;
+        if (offset > 12) {
+            offset -= 24;
+        }
+
+        return `GMT${offset >= 0 ? '+' : ''}${offset}`;
     };
 
     return {
@@ -225,5 +250,6 @@ export const util = (() => {
         safeInnerHTML,
         parseUserAgent,
         changeOpacity,
+        getGMTOffset,
     };
 })();

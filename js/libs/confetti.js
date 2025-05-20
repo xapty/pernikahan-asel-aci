@@ -11,6 +11,8 @@ export const loadConfetti = () => new Promise((res, rej) => {
     document.head.appendChild(sc);
 });
 
+const zIndex = 1057;
+
 /**
  * @returns {any}
  */
@@ -28,7 +30,7 @@ export const basicAnimation = () => {
     if (window.confetti) {
         window.confetti({
             origin: { y: 1 },
-            zIndex: 1057
+            zIndex: zIndex
         });
     }
 };
@@ -64,7 +66,7 @@ export const openAnimation = (until = 15) => {
                     x: Math.random(),
                     y: Math.abs(Math.random() - (timeLeft / duration)),
                 },
-                zIndex: 1057,
+                zIndex: zIndex,
                 colors: [color],
                 shapes: [heart],
                 drift: randomInRange(-0.5, 0.5),
@@ -83,15 +85,17 @@ export const openAnimation = (until = 15) => {
 
 /**
 * @param {HTMLElement} div
+* @param {number} [duration=50]
 * @returns {void}
 */
-export const tapTapAnimation = (div) => {
+export const tapTapAnimation = (div, duration = 50) => {
     if (!window.confetti) {
         return;
     }
 
-    const end = Date.now() + 25;
-    const yPosition = Math.max(0.3, Math.min(1, (div.getBoundingClientRect().top / window.innerHeight) + 0.2));
+    const end = Date.now() + duration;
+    const domRec = div.getBoundingClientRect();
+    const yPosition = Math.max(0.3, Math.min(1, (domRec.top / window.innerHeight) + 0.2));
 
     const heart = heartShape();
     const colors = ['#FF69B4', '#FF1493'];
@@ -103,8 +107,8 @@ export const tapTapAnimation = (div) => {
                 angle: 60,
                 spread: 55,
                 shapes: [heart],
-                origin: { x: 0, y: yPosition },
-                zIndex: 1057,
+                origin: { x: domRec.left / window.innerWidth, y: yPosition },
+                zIndex: zIndex,
                 colors: [color]
             });
             window.confetti({
@@ -112,8 +116,8 @@ export const tapTapAnimation = (div) => {
                 angle: 120,
                 spread: 55,
                 shapes: [heart],
-                origin: { x: 1, y: yPosition },
-                zIndex: 1057,
+                origin: { x: domRec.right / window.innerWidth, y: yPosition },
+                zIndex: zIndex,
                 colors: [color]
             });
         });
