@@ -18,6 +18,9 @@ html {
 .font-arabic {
     font-family: 'Noto Naskh Arabic', serif !important;
 }
+.amiri-quran-regular {
+  font-family: "Amiri Quran", serif !important;
+}
 
 .img-center-crop {
     width: 13rem;

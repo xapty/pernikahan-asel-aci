@@ -218,10 +218,11 @@ export const guest = (() => {
      * @returns {void}
      */
     const normalizeArabicFont = () => {
-        document.querySelectorAll('.font-arabic').forEach((el) => {
+        document.querySelectorAll('.amiri-quran-regular').forEach((el) => {
             el.innerHTML = String(el.innerHTML).normalize('NFC');
         });
     };
+	
 
     /**
      * @returns {void}
